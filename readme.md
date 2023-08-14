@@ -1,9 +1,12 @@
 # 电赛2023 吉林12*组E题方案部分代码
-## 巡线（嵌入式）部分依赖和首次启动测试
-    执行命令
+## 巡线部分算法本机一键测试
+    在某个文件夹打开CMD
+    执行
+    git clone https://github.com/sparrownut/TICUP_2023_JL12X.git
+    cd TICUP_2023_JL12X
     pip install -r requirements.txt
     python blackEdge.py
-    需要连接摄像头，建议在本机电脑上初次尝试，若出现图像则成功
+    即可运行,需要连接摄像头，建议在本机电脑上初次尝试，若出现图像则成功
 ## OPENMV视觉部分
     在openmv文件夹下
 ## 树莓派视觉部分
