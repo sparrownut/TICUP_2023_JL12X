@@ -14,7 +14,7 @@ from tools.getOS import detect_os
 
 
 if detect_os() == 'Windows':
-    from raspberry_getinfo import getinfo
+        from raspberry_getinfo import getinfo
 
 followMode = False
 pixelShapeX = 210

@@ -4,7 +4,7 @@
     执行
     git clone https://github.com/sparrownut/TICUP_2023_JL12X.git
     cd TICUP_2023_JL12X
-    pip install -r requirements.txt
+    pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
     python blackEdge.py
     即可运行,需要连接摄像头，建议在本机电脑上初次尝试，若出现图像则成功
 ## OPENMV视觉部分
