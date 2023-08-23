@@ -8,15 +8,15 @@ import numpy as np
 import serial
 from screeninfo import get_monitors
 
-from tools.getOS import detect_os
-
+# from tools.getOS import detect_os
 # from matplotlib import pyplot as plt
 
 
-if detect_os() == 'Windows':
-        from raspberry_getinfo import getinfo
+# if detect_os() == 'Windows':
+#         from raspberry_getinfo import getinfo
 
 followMode = False
+debugMode = False
 pixelShapeX = 210
 pixelShapeY = 210
 
@@ -76,8 +76,8 @@ def interpolate_points(points, target_distance=1):
 
 def getBorderEvent(contours, isSlowMode=False):
     global followMode
-    for i in range(2):
-        if len(contours) > 20:
+    for i in range(3):
+        if len(contours) > 2:
             print(f"+ 获取到循迹边框 {len(contours)}个采样点")
             points = []
             for it in contours:
@@ -91,8 +91,8 @@ def getBorderEvent(contours, isSlowMode=False):
                 send_cmd_GO(x, y)
                 # print(f'{x} {y}')
                 if isSlowMode:
-                    time.sleep(8 / len(contours))
-                time.sleep(1 / len(contours))
+                    time.sleep(10 / len(points))
+                time.sleep(1.2 / len(points))
     followMode = False
     for i in range(0, 10):
         send_cmd_GO(999, 999)
@@ -134,16 +134,21 @@ def find_midpoints(outer_contour, inner_contour):
     return np.array(midpoints).reshape(-1, 1, 2)
 
 
-def detect_tape_edge(frame, slowMode):
-    # 转换为HSV空间
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+def detect_tape_edge(frame, slowMode, debugMode=False):
+    # 转换为LAB空间
+    lab = cv2.cvtColor(frame, cv2.COLOR_BGR2Lab)
 
-    # 定义黑色的范围
-    lower_black = np.array([0, 0, 0])
-    upper_black = np.array([180, 255, 100])
+    # OpenMV中的LAB阈值
+    openmv_thresholds = (0, 30, -128, 127, -128, 127)
+
+    # 转换为OpenCV中的范围
+    lower_black = np.array(
+        [int((openmv_thresholds[0] / 100.0) * 255), openmv_thresholds[2] + 128, openmv_thresholds[4] + 128])
+    upper_black = np.array(
+        [int((openmv_thresholds[1] / 100.0) * 255), openmv_thresholds[3] + 128, openmv_thresholds[5] + 128])
 
     # 创建黑色的掩码
-    mask = cv2.inRange(hsv, lower_black, upper_black)
+    mask = cv2.inRange(lab, lower_black, upper_black)
 
     # 对掩码进行一些形态学操作以消除噪声
     mask = cv2.erode(mask, None, iterations=2)
@@ -156,13 +161,15 @@ def detect_tape_edge(frame, slowMode):
     if len(contours) >= 2:  # 找到了边框
         print('检测到边框')
         midpoints = find_midpoints(contours[0], contours[1])
+        print(f'midpoints数:{len(midpoints)}')
         cv2.drawContours(frame, [midpoints], 0, (255, 255, 255), 2)
-        getBorderEvent(midpoints, slowMode)
+        if not debugMode:
+            getBorderEvent(midpoints, slowMode)
     else:
         # print(f"* Debug : len(contours)=={len(contours)}")
         pass
 
-    # 绘制轮廓
+    # 绘制轮廓drawContours
     cv2.drawContours(frame, contours, -1, (0, 255, 0), 2)
     # print(contours) # [[x,y],[x2,y2]...]
     # with open('output.csv','a',errors=None) as write:
@@ -228,64 +235,68 @@ def fixCancvs(frame):
 
 time.sleep(10)  # 防止开机启动时启动太快导致窗口大小加载不对
 slowMode = False
+if __name__ == '__main__':
+    print('TICUP_2023_JL12X_V1.4.1')
+    while True:
+        imagesN += 1
+        ret, frame = cap.read()
+        frame = fixCancvs(frame)  # 剪切
 
-while True:
-    imagesN += 1
-    ret, frame = cap.read()
-    frame = fixCancvs(frame)  # 剪切
+        if not ret:
+            print("无法接收帧")
+            break
 
-    if not ret:
-        print("无法接收帧")
-        break
+        key = cv2.waitKey(1)
 
-    key = cv2.waitKey(1)
+        if key == ord('q'):
+            break
+        elif key == ord('w'):
+            editConfig(y_start_edit=-1)
+        elif key == ord('s'):
+            editConfig(y_start_edit=1)
+        elif key == ord('a'):
+            editConfig(x_start_edit=-1)
+        elif key == ord('d'):
+            editConfig(x_start_edit=1)
+        elif key == ord('t'):
+            editConfig(height_edit=-1)
+        elif key == ord('g'):
+            editConfig(height_edit=1)
+        elif key == ord('f'):
+            editConfig(width_edit=-1)
+        elif key == ord('h'):
+            editConfig(width_edit=1)
+        elif key == ord('e'):
+            editConfig(rotate_edit=-1)
+        elif key == ord('r'):
+            editConfig(rotate_edit=1)
+        elif key == ord('n'):
+            followMode = not followMode
+        elif key == ord('c'):
+            slowMode = not slowMode
+        elif key == ord('b'):
+            debugMode = not debugMode
+        if followMode:
+            frame = detect_tape_edge(frame, slowMode)
+        if debugMode:
+            frame = detect_tape_edge(frame, slowMode, debugMode)
 
-    if key == ord('q'):
-        break
-    elif key == ord('w'):
-        editConfig(y_start_edit=-1)
-    elif key == ord('s'):
-        editConfig(y_start_edit=1)
-    elif key == ord('a'):
-        editConfig(x_start_edit=-1)
-    elif key == ord('d'):
-        editConfig(x_start_edit=1)
-    elif key == ord('t'):
-        editConfig(height_edit=-1)
-    elif key == ord('g'):
-        editConfig(height_edit=1)
-    elif key == ord('f'):
-        editConfig(width_edit=-1)
-    elif key == ord('h'):
-        editConfig(width_edit=1)
-    elif key == ord('e'):
-        editConfig(rotate_edit=-1)
-    elif key == ord('r'):
-        editConfig(rotate_edit=1)
-    elif key == ord('n'):
-        followMode = not followMode
-    elif key == ord('c'):
-        slowMode = not slowMode
-    if followMode:
-        frame = detect_tape_edge(frame, slowMode)
+        # 获取屏幕分辨率
+        try:
+            monitor = get_monitors()[0]
+            screen_res = monitor.width, monitor.height
+            scale_width = screen_res[0] / frame.shape[1]
+            scale_height = screen_res[1] / frame.shape[0]
+            scale = min(scale_width, scale_height)
 
-    # 获取屏幕分辨率
-    try:
-        monitor = get_monitors()[0]
-        screen_res = monitor.width, monitor.height
-        scale_width = screen_res[0] / frame.shape[1]
-        scale_height = screen_res[1] / frame.shape[0]
-        scale = min(scale_width, scale_height)
+            window_width = int(frame.shape[1] * scale)
+            window_height = int(frame.shape[0] * scale)
+            cv2.namedWindow('BLACK TAPE', cv2.WINDOW_NORMAL)
+            cv2.resizeWindow('BLACK TAPE', window_width, window_height)
 
-        window_width = int(frame.shape[1] * scale)
-        window_height = int(frame.shape[0] * scale)
-
-        cv2.namedWindow('BLACK TAPE', cv2.WINDOW_NORMAL)
-        cv2.resizeWindow('BLACK TAPE', window_width, window_height)
-
-        cv2.imshow('BLACK TAPE', frame)  # 首先显示图像
-        cv2.setWindowProperty('BLACK TAPE', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)  # 然后设置窗口属性
-    except Exception as e:
-        traceback.print_exception(e)
-cap.release()
-cv2.destroyAllWindows()
+            cv2.imshow('BLACK TAPE', frame)  # 首先显示图像
+            cv2.setWindowProperty('BLACK TAPE', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)  # 然后设置窗口属性
+        except Exception as e:
+            traceback.print_exception(e)
+    cap.release()
+    cv2.destroyAllWindows()
